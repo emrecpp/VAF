@@ -199,8 +199,8 @@ void TimeDifference()
 inline void Control()
 {
 	bool mute2 = false;//karsilastirma icin
-	SOUND::INFO *inf2 = &vaf->ControlOfVolumes(-1, false);
-	int ses2 = inf2->value;
+	SOUND::INFO inf2 = vaf->ControlOfVolumes(-1, false);
+	int ses2 = inf2.value;
 	bool triggered = false;
 	int *nowses = new int(0);
 	while (true)
@@ -263,13 +263,14 @@ void Refresh()	{// 1 Kere calisacak, threadlari baslatiyor.
 	SetTextColor(vaf->device_context, RGB(255, 255, 255));
 	SelectObject(vaf->device_context, vaf->labelFont);
 
-	HBITMAP hBmp = CreateCompatibleBitmap(vaf->device_context, 60, 130);//MUTE yazsÃ½ arkada kaliyor
+	HBITMAP hBmp = CreateCompatibleBitmap(vaf->device_context, 60, 130);//MUTE yazsý arkada kaliyor
 	SelectObject(vaf->memdevice, hBmp);//Bu olmazsa labelin ustune yaziyor
 
 	CreateThread(0, 0, (LPTHREAD_START_ROUTINE)TimeDifference, 0, 0, 0);
 	CreateThread(0, 0, (LPTHREAD_START_ROUTINE)Control, 0, 0, 0);
 
 	bool mut = 0; int volume = 0;
+	int za = 1;
 	while (true)
 	{
 		if (*vaf->formgozukuyor)
@@ -293,7 +294,7 @@ void Refresh()	{// 1 Kere calisacak, threadlari baslatiyor.
 							vaf->SetVolume(volume);
 							Sleep(5);
 							vaf->SetVisual(mut, volume);
-						} while ((GetAsyncKeyState(VK_LBUTTON) & 0x8000) > 0);//While dongusunu kurmamin sebebi: eger ekranÃ½n en altina yada en ustune mouseyi getirdiginde volume de maximum yada minimum olmasÃ½ icin (X positionu yok sayiyorum)
+						} while ((GetAsyncKeyState(VK_LBUTTON) & 0x8000) > 0);//While dongusunu kurmamin sebebi: eger ekranýn en altina yada en ustune mouseyi getirdiginde volume de maximum yada minimum olmasý icin (X positionu yok sayiyorum)
 					}
 					else if (mouse(MOUSEEVENTS::ON_LABEL))//set right&left at the same time to see window
 					{
@@ -305,7 +306,10 @@ void Refresh()	{// 1 Kere calisacak, threadlari baslatiyor.
 					SendMessage(vaf->hwndpencere, WM_CLOSE, 0, 0);
 							
 				vaf->SetVisual(mut, volume);
-				SetForegroundWindow(vaf->AktifWindowtoback);//Eger internette geziniyorsaniz mouse asagi kaymasi icin, focus olmadan formun gitmesini beklemek zorunda kalmamak icin
+				if (!mouse(MOUSEEVENTS::ON_FORM))//bunu yapmazsam MOUSE TEKERLEK MESAJI GONDERILEMIYOR (THAT'S FOR WM_MOUSEWHEEL MESSAGE
+					SetForegroundWindow(vaf->AktifWindowtoback);//Eger internette geziniyorsaniz mouse asagi kaymasi icin, focus olmadan formun gitmesini beklemek zorunda kalmamak icin
+				else
+					SetForegroundWindow(vaf->hwndpencere);
 				Sleep(5);
 			} while (*vaf->formgozukuyor);
 		}
