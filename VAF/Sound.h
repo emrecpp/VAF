@@ -270,7 +270,6 @@ void Refresh()	{// 1 Kere calisacak, threadlari baslatiyor.
 	CreateThread(0, 0, (LPTHREAD_START_ROUTINE)Control, 0, 0, 0);
 
 	bool mut = 0; int volume = 0;
-	int za = 1;
 	while (true)
 	{
 		if (*vaf->formgozukuyor)
