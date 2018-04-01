@@ -6,10 +6,9 @@
 #pragma comment(lib, "Ole32.lib")
 #pragma comment(lib, "gdi32.lib")
 #pragma comment(lib, "user32.lib")
-
 #define _CRT_SECURE_NO_WARNINGS
-static int *sesptr = new int(0);
-static bool *muteptr = new bool(false);
+
+
 #define GET_MUTE 0
 #define GET_VOLUME 1
 #define GET_VOLUMEMUTE 2
@@ -17,6 +16,11 @@ static bool *muteptr = new bool(false);
 #define SET_MUTE_AUTO 4
 #define SET_VOLUME 5
 #define SET_MUTE_WANT 6
+
+
+//Use that variable to get volume or mute after call function:
+static int *sesptr = new int(0);//VOLUME
+static bool *muteptr = new bool(false);//MUTE
 namespace SOUND
 {
 	inline void Center(byte type)
