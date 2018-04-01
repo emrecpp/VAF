@@ -17,10 +17,8 @@ static bool *muteptr = new bool(false);
 #define SET_MUTE_AUTO 4
 #define SET_VOLUME 5
 #define SET_MUTE_WANT 6
-//static int* parametertoSETVOLUME = new int(1);//change that's before than setvolume
 namespace SOUND
 {
-
 	inline void Center(byte type)
 	{
 		try
@@ -40,21 +38,21 @@ namespace SOUND
 				endpointVolume->Release();
 				device->Release();
 				enumerator->Release();
-				*sesptr = ses;				
-				return; 
+				*sesptr = ses;
+				return;
 			}
 			if (type == GET_VOLUMEMUTE)//2
 			{
 				float currentVolume = 0;
 				endpointVolume->GetMasterVolumeLevelScalar(&currentVolume);
-				int ses = (currentVolume + 0.00000039) * 100;//0.259999961
+				int ses = (currentVolume + 0.00000039) * 100;
 				BOOL mute;
 				endpointVolume->GetMute(&mute);
 				endpointVolume->Release();
 				device->Release();
 				enumerator->Release();
 				*sesptr = ses;
-				*muteptr = mute;
+				*muteptr = (BOOL)mute;
 				return;
 			}
 			if (type == SET_MUTE_AUTO)//4
@@ -74,14 +72,14 @@ namespace SOUND
 				endpointVolume->Release();
 				device->Release();
 				enumerator->Release();
-				*muteptr = mute;
+				*muteptr = (BOOL)mute;
 				return;
 			}
 			if (type == SET_VOLUME)//5
 			{
-				float newVolume = static_cast<float>(*sesptr) / 100;//1 ile 0 arasinda tutmak icin 100'e bolduk
+				float newVolume = static_cast<float>(*sesptr) / 100;//Between 1 and 0. (1 ile 0 arasinda tutmak icin)
 				endpointVolume->SetMasterVolumeLevelScalar(newVolume, NULL);
-				endpointVolume->SetMute(false, 0);//eger volume yapilacaksa otomatik muteden cikarilmali
+				endpointVolume->SetMute(false, 0);
 				endpointVolume->Release();
 				device->Release();
 				enumerator->Release();
@@ -103,7 +101,7 @@ namespace SOUND
 		}
 	}
 
-	HWND hwndpencere, hwndlabel, AktifWindowtoback = 0;// lblSes, hProgress;
+	HWND hwndpencere, hwndlabel, AktifWindowtoback = 0;
 	const HBRUSH boya_black = RGB(0, 0, 0), boya_mavi = CreateSolidBrush(RGB(0, 116, 255)), boya_gri = CreateSolidBrush(RGB(106, 106, 106)), boya_yesil = CreateSolidBrush(RGB(82, 180, 0));
 	HDC  hdcpencere = 0;
 
@@ -159,10 +157,10 @@ namespace SOUND
 		{
 			sprintf(out, "%d", value);
 			if (value > 9){
-				SetWindowPos(hwndlabel, 0, 20, 94, 30, 17, 0);//bunlarida yap
+				SetWindowPos(hwndlabel, 0, 20, 94, 30, 17, 0);
 			}
 			else{
-				SetWindowPos(hwndlabel, 0, 22, 94, 30, 17, 0);//bunlarida
+				SetWindowPos(hwndlabel, 0, 22, 94, 30, 17, 0);
 			}
 		}
 		else{
@@ -181,7 +179,7 @@ namespace SOUND
 	{
 		while (true)
 		{
-			if (*ekrandabekletileceksure < 1)//Fazla performans tutketmesin diye
+			if (*ekrandabekletileceksure < 1)//For performance.
 				Sleep(200);
 
 			do
@@ -189,7 +187,7 @@ namespace SOUND
 				Sleep(1000);
 			} while (*ekrandabekletileceksure -= 1 >= 0);
 
-			while (GetAsyncKeyState(VK_LBUTTON))//Eger hala sol click ile ses seciliyorsa		
+			while (GetAsyncKeyState(VK_LBUTTON))//if still left click on
 				Sleep(100);
 
 			*formgozukuyor = false;
@@ -197,7 +195,7 @@ namespace SOUND
 
 			SetForegroundWindow(AktifWindowtoback);
 			System::GC::Collect();
-			System::GC::WaitForPendingFinalizers();			
+			System::GC::WaitForPendingFinalizers();
 		}
 	}
 
@@ -208,19 +206,19 @@ namespace SOUND
 		GetVolumeAndMute();
 		*volumecompare = *sesptr;
 		*mutecompare = *muteptr;
-		
+
 		static bool triggered = false;
 		while (true)
 		{
 			GetVolumeAndMute();
-		
-			if ((*muteptr != *mutecompare) ||(*sesptr != *volumecompare))
+
+			if ((*muteptr != *mutecompare) || (*sesptr != *volumecompare))
 				triggered = true;
 
 
 			if (*enablemouseclicks4show)
 				if (GetAsyncKeyState(VK_LBUTTON) & 0x8000 && GetAsyncKeyState(VK_RBUTTON) & 0x8000) {
-					if (IsWindowVisible(hwndpencere))//eger gosteriliyorsa kapanmasi icin;
+					if (IsWindowVisible(hwndpencere))
 					{
 						ShowWindow(hwndpencere, SW_HIDE);
 						*formgozukuyor = false;
@@ -233,7 +231,7 @@ namespace SOUND
 
 
 
-			*mutecompare = *muteptr;//inf->getmute;
+			*mutecompare = *muteptr;
 			*volumecompare = *sesptr;
 
 			if (triggered)
@@ -258,7 +256,7 @@ namespace SOUND
 	const RECT Progressbar = RECT{ 23, 20, 37, 91 }, Window = RECT{ 60, 120, 75, 100 };//Right = loc X, Bottom = Loc Y, Left = Size X, Top = Size Y	
 	static HWND beforewindow = 0;
 	static bool *mut = new bool(0); static int  *volume = new int(0);
-	inline void  eRefresh()	{// 1 Kere calisacak, threadlari baslatiyor.
+	inline void  eRefresh()	{
 		CreateThread(0, 0, (LPTHREAD_START_ROUTINE)TimeDifference, 0, 0, 0);
 		CreateThread(0, 0, (LPTHREAD_START_ROUTINE)eControl, 0, 0, 0);
 		while (true)
@@ -274,7 +272,7 @@ namespace SOUND
 
 						if (GetAsyncKeyState(VK_LBUTTON) & 0x8000)
 						{
-							if (mouse(MOUSEEVENTS::ON_FORM) && !mouse(MOUSEEVENTS::ON_LABEL))//YOU CAN USE THAT :  (mouse(MOUSEEVENTS::ON_PROGRESSBAR)) 
+							if (mouse(MOUSEEVENTS::ON_FORM) && !mouse(MOUSEEVENTS::ON_LABEL))//Prefer:  (mouse(MOUSEEVENTS::ON_PROGRESSBAR)) 
 							{
 								*ekrandabekletileceksure = 3;
 								do
@@ -289,9 +287,9 @@ namespace SOUND
 									SetVolume(*sesptr);
 									SetVisual(*muteptr, *sesptr);
 									Sleep(5);
-								} while ((GetAsyncKeyState(VK_LBUTTON) & 0x8000) > 0);//While dongusunu kurmamin sebebi: eger ekranın en altina yada en ustune mouseyi getirdiginde volume de maximum yada minimum olması icin (X positionu yok sayiyorum)
+								} while ((GetAsyncKeyState(VK_LBUTTON) & 0x8000) > 0);//While dongusunu kurmamin sebebi: eger ekranin en altina yada en ustune mouseyi getirdiginde volume de maximum yada minimum olmasi icin (X positionu yok sayiyorum)
 							}
-							else if (mouse(MOUSEEVENTS::ON_LABEL))//set right&left at the same time to see window
+							else if (mouse(MOUSEEVENTS::ON_LABEL))//(set right&left at the same time to) -> see window
 							{
 								*enablemouseclicks4show = !*enablemouseclicks4show;
 								Sleep(150);
@@ -318,7 +316,7 @@ namespace SOUND
 			{
 				std::stringstream ss;
 				ss << exx.what();
-				MessageBoxA(0, ss.str().c_str(), "eREFRESH", 0);
+				MessageBoxA(0, ss.str().c_str(), "eREFRESH!", 0);
 
 			}
 		}
@@ -335,7 +333,7 @@ namespace SOUND
 			else
 				return false;
 		}
-		else if (whatwant == MOUSEEVENTS::ON_PROGRESSBAR)//progressbarin ustune tiklandiginda da calissin diye ozel degerler eklendi
+		else if (whatwant == MOUSEEVENTS::ON_PROGRESSBAR)
 		{
 			if ((mousept->x + 5 > Window.right + Progressbar.left && mousept->x < Window.right + Window.left - Progressbar.left + 1) &&
 				(mousept->y + 10 > Window.bottom + Progressbar.top && mousept->y < Window.bottom + Window.top - Progressbar.top - 7))
@@ -345,11 +343,12 @@ namespace SOUND
 		}
 		else if (whatwant == MOUSEEVENTS::ON_LABEL)
 		{
-			if ((mousept->x + 12 > Window.right + labelX && mousept->x < Window.right + labelX + 25) &&//25 = DEGERIN SIZESI
+			if ((mousept->x + 12 > Window.right + labelX && mousept->x < Window.right + labelX + 25) &&//25 = value's size  (DEGERIN SIZESI) (%100)
 				mousept->y > Window.bottom + labelY && mousept->y < Window.bottom + labelY + 15)
 				return true;
 			else
 				return false;
 		}
+		return false;
 	}
 };
