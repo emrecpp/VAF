@@ -1,347 +1,355 @@
 #include <iostream>
 #include <mmdeviceapi.h>
 #include <endpointvolume.h>
+#include <sstream>
 
 #pragma comment(lib, "Ole32.lib")
+#pragma comment(lib, "gdi32.lib")
+#pragma comment(lib, "user32.lib")
 
+#define _CRT_SECURE_NO_WARNINGS
+static int *sesptr = new int(0);
+static bool *muteptr = new bool(false);
+#define GET_MUTE 0
+#define GET_VOLUME 1
+#define GET_VOLUMEMUTE 2
 
-class SOUND
+#define SET_MUTE_AUTO 4
+#define SET_VOLUME 5
+#define SET_MUTE_WANT 6
+//static int* parametertoSETVOLUME = new int(1);//change that's before than setvolume
+namespace SOUND
 {
-public:
-	struct INFO
+
+	inline void Center(byte type)
 	{
-		bool getmute;
-		int value;
-		INFO(int val, bool getmut)
+		try
 		{
-			value = val;
-			getmute = getmut;
+			IMMDeviceEnumerator *enumerator = NULL;
+			IMMDevice *device = NULL;
+			IAudioEndpointVolume *endpointVolume = NULL;
+			CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_INPROC_SERVER, __uuidof(IMMDeviceEnumerator), (void**)&enumerator);
+			enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device);
+			device->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_INPROC_SERVER, NULL, (LPVOID *)&endpointVolume);
+
+			if (type == GET_VOLUME)//1
+			{
+				float currentVolume = 0;
+				endpointVolume->GetMasterVolumeLevelScalar(&currentVolume);
+				int ses = (currentVolume + 0.00000039) * 100;//0.259999961
+				endpointVolume->Release();
+				device->Release();
+				enumerator->Release();
+				*sesptr = ses;				
+				return; 
+			}
+			if (type == GET_VOLUMEMUTE)//2
+			{
+				float currentVolume = 0;
+				endpointVolume->GetMasterVolumeLevelScalar(&currentVolume);
+				int ses = (currentVolume + 0.00000039) * 100;//0.259999961
+				BOOL mute;
+				endpointVolume->GetMute(&mute);
+				endpointVolume->Release();
+				device->Release();
+				enumerator->Release();
+				*sesptr = ses;
+				*muteptr = mute;
+				return;
+			}
+			if (type == SET_MUTE_AUTO)//4
+			{
+				BOOL mute;
+				endpointVolume->GetMute(&mute);
+				endpointVolume->SetMute(!mute, 0);
+				endpointVolume->Release();
+				device->Release();
+				enumerator->Release();
+				return;
+			}
+			if (type == GET_MUTE)//0
+			{
+				BOOL mute;
+				endpointVolume->GetMute(&mute);
+				endpointVolume->Release();
+				device->Release();
+				enumerator->Release();
+				*muteptr = mute;
+				return;
+			}
+			if (type == SET_VOLUME)//5
+			{
+				float newVolume = static_cast<float>(*sesptr) / 100;//1 ile 0 arasinda tutmak icin 100'e bolduk
+				endpointVolume->SetMasterVolumeLevelScalar(newVolume, NULL);
+				endpointVolume->SetMute(false, 0);//eger volume yapilacaksa otomatik muteden cikarilmali
+				endpointVolume->Release();
+				device->Release();
+				enumerator->Release();
+				return;
+			}
+			if (type == SET_MUTE_WANT)//6
+			{
+				endpointVolume->SetMute(*muteptr, 0);
+				endpointVolume->Release();
+				device->Release();
+				enumerator->Release();
+				return;
+			}
 		}
-	};
-	inline INFO  ControlOfVolumes(int setvalue, bool setmute)
-	{
-		HRESULT hr = NULL;
-		IAudioEndpointVolume *endpointVolume;
-		float newVolume = -1;
-		if (setvalue != -1) {
-			newVolume = (setvalue + 0.1) / 100;//intten floata cevirmek icin ekledik
-			newVolume -= 0.1 / 100;//eski hali icin cikardik
-		}
-		hr = NULL;
-
-		CoInitialize(NULL);
-		IMMDeviceEnumerator *deviceEnumerator = NULL;
-		hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_INPROC_SERVER, __uuidof(IMMDeviceEnumerator), (LPVOID *)&deviceEnumerator);
-		IMMDevice *defaultDevice = NULL;
-
-		hr = deviceEnumerator->GetDefaultAudioEndpoint(eRender, eConsole, &defaultDevice);
-		deviceEnumerator->Release();
-		deviceEnumerator = NULL;
-		endpointVolume = NULL;
-		hr = defaultDevice->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_INPROC_SERVER, NULL, (LPVOID *)&endpointVolume);
-		defaultDevice->Release();
-		defaultDevice = NULL;
-
-		if (setmute && setvalue == -1)//mute degisterimek icinse (-1, true)
-		{
-
-			BOOL mute;
-			endpointVolume->GetMute(&mute);
-			endpointVolume->SetMute(!mute, 0);
-
-			endpointVolume->Release();
-			//CoUninitialize();
-			return  INFO(-1, false);//NULL
-		}
-		else if (setvalue == -2)//Change mute 2 :what do you want to do
-		{
-			endpointVolume->SetMute(setmute, 0);
-
-			endpointVolume->Release();
-			//CoUninitialize();
-			return  INFO(-1, false);//NULL			
-		}
-		else if (setvalue == -1 && !setmute)//not set (get volume) (-1,false)
-		{
-			float currentVolume = 0;
-			hr = endpointVolume->GetMasterVolumeLevelScalar(&currentVolume);
-			int ses = (currentVolume + 0.00000039) * 100;//0.259999961
-			BOOL mute;
-			endpointVolume->GetMute(&mute);
-			endpointVolume->Release();
-			//CoUninitialize();
-
-			return   INFO(ses, mute);
-		}
-		else if (setvalue > -1)//set volume
-		{
-			hr = endpointVolume->SetMasterVolumeLevelScalar((float)newVolume, NULL);
-			endpointVolume->SetMute(false, 0);//eger volume yapilacaksa otomatik muteden cikarilmali
-			endpointVolume->Release();
-			//	CoUninitialize();
-			return INFO(-1, false);//NULL
+		catch (std::exception H){
+			std::stringstream sx;
+			sx << H.what();
+			MessageBoxA(0, sx.str().c_str(), "CENTER!", MB_OK);
 		}
 	}
 
-	class SpecialSizes{//you can change that as you like
-	public:
-		const char* Label_FontName = "Segoe UI Semibold";
-		const int Label_Size = 18;
-		const RECT Progressbar = RECT{ 23, 20, 37, 91 }, Window = RECT{ 60, 120, 75, 100 };//Right = loc X, Bottom = Loc Y, Left = Size X, Top = Size Y		
-	};
-	HWND hwndpencere, AktifWindowtoback = 0;// lblSes, hProgress;
-	const HBRUSH boya_black = RGB(0, 0, 0), boya_mavi = CreateSolidBrush(RGB(0, 116, 255)), boya_gri = CreateSolidBrush(RGB(106, 106, 106)), boya_yesil = CreateSolidBrush(RGB(82,180,0));
-	HDC device_context, memdevice;
-	PAINTSTRUCT ps;
-	HFONT labelFont;
+	HWND hwndpencere, hwndlabel, AktifWindowtoback = 0;// lblSes, hProgress;
+	const HBRUSH boya_black = RGB(0, 0, 0), boya_mavi = CreateSolidBrush(RGB(0, 116, 255)), boya_gri = CreateSolidBrush(RGB(106, 106, 106)), boya_yesil = CreateSolidBrush(RGB(82, 180, 0));
+	HDC  hdcpencere = 0;
 
-	int *ekrandabekletileceksure = new int(3);//default olarak 3
-	bool *formgozukuyor = new bool(true);
-	bool *enablemouseclicks4show = new bool(false);
+	static int *ekrandabekletileceksure = new int(3);//default olarak 3
+	static bool *formgozukuyor = new bool(true);
+	static bool *enablemouseclicks4show = new bool(false);
 	inline int GetVolume()
 	{
-		INFO  inf = ControlOfVolumes(-1, false);
-		return inf.value;
+		Center(GET_VOLUME);
+		return *sesptr;
 	}
 	inline int GetMute()
 	{
-		INFO  inf = ControlOfVolumes(-1, false);
-		return inf.getmute;
+		Center(GET_MUTE);
+		return *muteptr;
 	}
 
 	inline void SetVolume(int ses)//
 	{
 		ses = ses > 100 ? 100 : ses;
-		ses = ses < 0 ? 0 : ses;
-		ControlOfVolumes(ses, false);
+		*sesptr = ses < 0 ? 0 : ses;
+		Center(SET_VOLUME);//Do not forget set *sesptr before call Center(SET_VOLUME);
 	}
 	inline void SetMute(bool mute)
 	{
-		ControlOfVolumes(-2, mute);//-2 is special for set mute what do you want to do
+		*muteptr = mute;
+		Center(SET_MUTE_WANT);
 	}
 	inline void ChangeMute()
 	{
-		ControlOfVolumes(-1, true);
+		Center(SET_MUTE_AUTO);
 	}
-	inline void GetVolumeAndMute(bool *mut, int *vol) {
-		INFO  inf = ControlOfVolumes(-1, false);
-		*mut = inf.getmute;
-		*vol = inf.value;
+	inline void GetVolumeAndMute() {
+		Center(GET_VOLUMEMUTE);
 	}
-	
+
 	char out[5];
 	const int labelX = 23, labelY = 94;
 	const int labelX_MUTE = 13, labelY_MUTE = 94;
-	inline void SetVisual(bool muteli, int value)
+	int *oncekises = new int(0);
+	bool *oncekimute = new bool(false);
+	inline void  SetVisual(bool muteli, int value)
 	{
-		BitBlt(device_context, 0, 0, 60, 130, memdevice, 0, 0, SRCCOPY);
-
-		//SendMessage(hProgress, (WM_USER + 2), value, 0);//pbm_setpos   		//		SendMessage(lblSes, WM_SETTEXT, NULL, (LPARAM)out);
-		
 		RECT rcProgressbar = { 23, 20, 37, 90 }; //rcProgressbar = {top=20 bottom=90 left=23 right=37}
-		//Progressbar
-		::FillRect(device_context, &rcProgressbar, boya_gri);//gri (gray) 
-		rcProgressbar.top = ((value*-0.7) + 90);
+		::FillRect(hdcpencere, &rcProgressbar, boya_gri);//gri (gray) 
+		rcProgressbar.top = (value*-0.7 + 90);//ax+b
 		if (!muteli)//{  Beyaz cubuk
-		::FillRect(device_context, &rcProgressbar, boya_mavi);//mavi (blue)
-		/*RECT rcProgressbarDOTS = { 23, 74, 37, 75 };	
-		rcProgressbarDOTS.top = rcProgressbar.top - 12;
-		rcProgressbarDOTS.bottom = rcProgressbar.top;
-		::FillRect(device_context, &rcProgressbarDOTS, RGB(0,0,0));*/
-		//}
+			::FillRect(hdcpencere, &rcProgressbar, boya_mavi);//mavi (blue)
 		else
-			::FillRect(device_context, &rcProgressbar, boya_yesil);//yesil (green)
+			::FillRect(hdcpencere, &rcProgressbar, boya_yesil);//yesil (green)
 
-		//Right = loc X, Bottom = Loc Y, Left = Size X, Top = Size Y
-
-		//Label
-		if (*this->enablemouseclicks4show)//left & right  click as the same time for show form, label's color
-			SetTextColor(device_context, RGB(255, 255, 0));//sari (yellow)
-		else
-			SetTextColor(device_context, RGB(255, 255, 255));
-
-		if (!muteli){
+		if (!muteli)
+		{
 			sprintf(out, "%d", value);
-			TextOut(device_context, labelX, labelY, out, strlen(out));
+			if (value > 9){
+				SetWindowPos(hwndlabel, 0, 20, 94, 30, 17, 0);//bunlarida yap
+			}
+			else{
+				SetWindowPos(hwndlabel, 0, 22, 94, 30, 17, 0);//bunlarida
+			}
 		}
 		else{
 			sprintf(out, "%s", "MUTE");
-			TextOut(device_context, labelX_MUTE, labelY_MUTE, out, strlen(out));
+			SetWindowPos(hwndlabel, 0, 12, 94, 43, 17, 0);
 		}
-	
-		
-		EndPaint(hwndpencere, &ps);
-	}
-};
-SOUND *vaf = new SOUND();
-SOUND::SpecialSizes *sizes = new SOUND::SpecialSizes();
-void TimeDifference()
-{
-	while (true)
-	{
-		if (*vaf->ekrandabekletileceksure < 1)//Fazla performans tutketmesin diye
-			Sleep(200);
-
-		do
-		{
-			Sleep(1000);
-		} while (*vaf->ekrandabekletileceksure -= 1 >= 0);
-
-		while (GetAsyncKeyState(VK_LBUTTON))//Eger hala sol click ile ses seciliyorsa		
-			Sleep(100);
-
-		ShowWindow(vaf->hwndpencere, SW_HIDE);
-		*vaf->formgozukuyor = false;
-		SetForegroundWindow(vaf->AktifWindowtoback);
-	}
-}
-
-inline void Control()
-{
-	bool mute2 = false;//karsilastirma icin
-	SOUND::INFO inf2 = vaf->ControlOfVolumes(-1, false);
-	int ses2 = inf2.value;
-	bool triggered = false;
-	int *nowses = new int(0);
-	while (true)
-	{
-		SOUND::INFO inf = vaf->ControlOfVolumes(-1, false);
-		*nowses = inf.value;
-
-		if (inf.getmute != mute2)
-			triggered = true;
-
-		if (*nowses != ses2)
-			triggered = true;
-
-
-		if (*vaf->enablemouseclicks4show){
-			if (GetAsyncKeyState(VK_LBUTTON) & 0x8000 && GetAsyncKeyState(VK_RBUTTON) & 0x8000) {
-
-				if (IsWindowVisible(vaf->hwndpencere))//eger gosteriliyorsa kapanmasi icin;
-				{
-					ShowWindow(vaf->hwndpencere, SW_HIDE);
-					*vaf->formgozukuyor = false;
-					SetForegroundWindow(vaf->AktifWindowtoback);
-					Sleep(120);
-					continue;
-				}
-				triggered = true;
-			}
+		if (value != *oncekises || muteli != *oncekimute){
+			*oncekises = value;
+			*oncekimute = muteli;
+			SendMessage(hwndlabel, WM_SETTEXT, 0, (LPARAM)TEXT(out));
+			InvalidateRect(hwndlabel, NULL, 0);
 		}
-
-
-
-		mute2 = inf.getmute;
-		ses2 = *nowses;
-
-		if (triggered)
-		{
-			triggered = false;
-			if (GetForegroundWindow() != vaf->hwndpencere)
-				vaf->AktifWindowtoback = GetForegroundWindow();//Aktif windowu aliyorum ki form gizlenince tekrar o formu aktif edilsin						
-
-			*vaf->ekrandabekletileceksure = 3;
-			ShowWindow(vaf->hwndpencere, SW_SHOW);
-			*vaf->formgozukuyor = true;
-			vaf->SetVisual(mute2, ses2);
-		}
-		Sleep(100);
 	}
-}
-enum MOUSEEVENTS{
-	ON_FORM,
-	ON_PROGRESSBAR,
-	ON_LABEL
-};
-inline bool mouse(MOUSEEVENTS whatwant);
-void Refresh()	{// 1 Kere calisacak, threadlari baslatiyor.
-	vaf->device_context = GetDC(vaf->hwndpencere);
-	vaf->memdevice = CreateCompatibleDC(vaf->device_context);
-	vaf->labelFont = CreateFont(sizes->Label_Size, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, VARIABLE_PITCH, sizes->Label_FontName);
-	SetBkMode(vaf->device_context, TRANSPARENT);
-	SetTextColor(vaf->device_context, RGB(255, 255, 255));
-	SelectObject(vaf->device_context, vaf->labelFont);
 
-	HBITMAP hBmp = CreateCompatibleBitmap(vaf->device_context, 60, 130);//MUTE yazsý arkada kaliyor
-	SelectObject(vaf->memdevice, hBmp);//Bu olmazsa labelin ustune yaziyor
-
-	CreateThread(0, 0, (LPTHREAD_START_ROUTINE)TimeDifference, 0, 0, 0);
-	CreateThread(0, 0, (LPTHREAD_START_ROUTINE)Control, 0, 0, 0);
-
-	bool mut = 0; int volume = 0;
-	while (true)
+	void TimeDifference()
 	{
-		if (*vaf->formgozukuyor)
+		while (true)
 		{
+			if (*ekrandabekletileceksure < 1)//Fazla performans tutketmesin diye
+				Sleep(200);
+
 			do
 			{
-				vaf->GetVolumeAndMute(&mut, &volume);
-				if (GetAsyncKeyState(VK_LBUTTON) & 0x8000)//Left click to events
-				{
-					if (mouse(MOUSEEVENTS::ON_PROGRESSBAR))//set volume
-					{
-						do
-						{
-							POINT pt;
-							GetCursorPos(&pt);
-							int y = 100 - (1.42*(pt.y - sizes->Window.bottom - sizes->Progressbar.top));
-							y = y > 100 ? 100 : y;
-							y = y < 0 ? 0 : y;
-							mut = false;
-							volume = y;
-							vaf->SetVolume(volume);
-							Sleep(5);
-							vaf->SetVisual(mut, volume);
-						} while ((GetAsyncKeyState(VK_LBUTTON) & 0x8000) > 0);//While dongusunu kurmamin sebebi: eger ekranýn en altina yada en ustune mouseyi getirdiginde volume de maximum yada minimum olmasý icin (X positionu yok sayiyorum)
-					}
-					else if (mouse(MOUSEEVENTS::ON_LABEL))//set right&left at the same time to see window
-					{
-						*vaf->enablemouseclicks4show = !*vaf->enablemouseclicks4show;
-						Sleep(150);
-					}
-				}
-				else if ((GetAsyncKeyState(VK_RBUTTON) & 0x8000) && (mouse(MOUSEEVENTS::ON_LABEL)))//Label'a Sag click ile cikis
-					SendMessage(vaf->hwndpencere, WM_CLOSE, 0, 0);
-							
-				vaf->SetVisual(mut, volume);
-				if (!mouse(MOUSEEVENTS::ON_FORM))//bunu yapmazsam MOUSE TEKERLEK MESAJI GONDERILEMIYOR (THAT'S FOR WM_MOUSEWHEEL MESSAGE
-					SetForegroundWindow(vaf->AktifWindowtoback);//Eger internette geziniyorsaniz mouse asagi kaymasi icin, focus olmadan formun gitmesini beklemek zorunda kalmamak icin
-				else
-					SetForegroundWindow(vaf->hwndpencere);
-				Sleep(5);
-			} while (*vaf->formgozukuyor);
-		}
-		Sleep(200);
-	}
-}
+				Sleep(1000);
+			} while (*ekrandabekletileceksure -= 1 >= 0);
 
-inline bool mouse(MOUSEEVENTS whatwant)//Right = loc X, Bottom = Loc Y, Left = Size X, Top = Size Y
-{
-	POINT mouse;
-	GetCursorPos(&mouse);
-	if (whatwant == MOUSEEVENTS::ON_FORM)
-	{
-		if ((mouse.x > sizes->Window.right && mouse.x < sizes->Window.right + sizes->Window.left - 1) &&
-			(mouse.y > sizes->Window.bottom && mouse.y < sizes->Window.bottom + sizes->Window.top - 1))
-			return true;
-		else
-			return false;
+			while (GetAsyncKeyState(VK_LBUTTON))//Eger hala sol click ile ses seciliyorsa		
+				Sleep(100);
+
+			*formgozukuyor = false;
+			ShowWindow(hwndpencere, SW_HIDE);
+
+			SetForegroundWindow(AktifWindowtoback);
+			System::GC::Collect();
+			System::GC::WaitForPendingFinalizers();			
+		}
 	}
-	else if (whatwant == MOUSEEVENTS::ON_PROGRESSBAR)//progressbarin ustune tiklandiginda da calissin diye ozel degerler eklendi
+
+	inline void eControl()
 	{
-		if ((mouse.x + 5 > sizes->Window.right + sizes->Progressbar.left && mouse.x < sizes->Window.right + sizes->Window.left - sizes->Progressbar.left + 1) &&
-			(mouse.y + 10 > sizes->Window.bottom + sizes->Progressbar.top && mouse.y < sizes->Window.bottom + sizes->Window.top - sizes->Progressbar.top - 7))
-			return true;
-		else
-			return false;
+		static int* volumecompare = new int(0);
+		static bool* mutecompare = new bool(false);
+		GetVolumeAndMute();
+		*volumecompare = *sesptr;
+		*mutecompare = *muteptr;
+		
+		static bool triggered = false;
+		while (true)
+		{
+			GetVolumeAndMute();
+		
+			if ((*muteptr != *mutecompare) ||(*sesptr != *volumecompare))
+				triggered = true;
+
+
+			if (*enablemouseclicks4show)
+				if (GetAsyncKeyState(VK_LBUTTON) & 0x8000 && GetAsyncKeyState(VK_RBUTTON) & 0x8000) {
+					if (IsWindowVisible(hwndpencere))//eger gosteriliyorsa kapanmasi icin;
+					{
+						ShowWindow(hwndpencere, SW_HIDE);
+						*formgozukuyor = false;
+						SetForegroundWindow(AktifWindowtoback);
+						Sleep(300);
+						continue;
+					}
+					triggered = true;
+				}
+
+
+
+			*mutecompare = *muteptr;//inf->getmute;
+			*volumecompare = *sesptr;
+
+			if (triggered)
+			{
+				triggered = false;
+				*ekrandabekletileceksure = 3;
+				*formgozukuyor = true;
+				SetVisual(*muteptr, *sesptr);
+				ShowWindow(hwndpencere, SW_SHOW);
+				Sleep(10);
+				SetVisual(*muteptr, *sesptr);
+			}
+			Sleep(100);
+		}
 	}
-	else if (whatwant == MOUSEEVENTS::ON_LABEL)
+	const enum MOUSEEVENTS{
+		ON_FORM,
+		ON_PROGRESSBAR,
+		ON_LABEL
+	};
+	inline bool mouse(MOUSEEVENTS whatwant);
+	const RECT Progressbar = RECT{ 23, 20, 37, 91 }, Window = RECT{ 60, 120, 75, 100 };//Right = loc X, Bottom = Loc Y, Left = Size X, Top = Size Y	
+	static HWND beforewindow = 0;
+	static bool *mut = new bool(0); static int  *volume = new int(0);
+	inline void  eRefresh()	{// 1 Kere calisacak, threadlari baslatiyor.
+		CreateThread(0, 0, (LPTHREAD_START_ROUTINE)TimeDifference, 0, 0, 0);
+		CreateThread(0, 0, (LPTHREAD_START_ROUTINE)eControl, 0, 0, 0);
+		while (true)
+		{
+			try
+			{
+				if (*formgozukuyor)
+				{
+					do
+					{
+						GetVolumeAndMute();
+						SetVisual(*muteptr, *sesptr);
+
+						if (GetAsyncKeyState(VK_LBUTTON) & 0x8000)
+						{
+							if (mouse(MOUSEEVENTS::ON_FORM) && !mouse(MOUSEEVENTS::ON_LABEL))//YOU CAN USE THAT :  (mouse(MOUSEEVENTS::ON_PROGRESSBAR)) 
+							{
+								*ekrandabekletileceksure = 3;
+								do
+								{
+									POINT pt;
+									GetCursorPos(&pt);
+									int y = 100 - (1.42*(pt.y - Window.bottom - Progressbar.top));
+									y = y > 100 ? 100 : y;
+									y = y < 0 ? 0 : y;
+									*muteptr = false;
+									*sesptr = y;
+									SetVolume(*sesptr);
+									SetVisual(*muteptr, *sesptr);
+									Sleep(5);
+								} while ((GetAsyncKeyState(VK_LBUTTON) & 0x8000) > 0);//While dongusunu kurmamin sebebi: eger ekranÄ±n en altina yada en ustune mouseyi getirdiginde volume de maximum yada minimum olmasÄ± icin (X positionu yok sayiyorum)
+							}
+							else if (mouse(MOUSEEVENTS::ON_LABEL))//set right&left at the same time to see window
+							{
+								*enablemouseclicks4show = !*enablemouseclicks4show;
+								Sleep(150);
+							}
+						}
+
+						if (mouse(MOUSEEVENTS::ON_FORM))//bunu yapmazsam MOUSE TEKERLEK MESAJI GONDERILEMIYOR (THAT'S FOR WM_MOUSEWHEEL MESSAGE)
+							SetForegroundWindow(hwndpencere);
+						else
+						{
+							beforewindow = GetAncestor(GetForegroundWindow(), 2);
+							if (beforewindow != hwndpencere)
+								AktifWindowtoback = beforewindow;
+							SetForegroundWindow(AktifWindowtoback);
+							Sleep(200);
+						}
+
+						Sleep(20);
+					} while (*formgozukuyor);
+				}
+				Sleep(200);
+			}
+			catch (std::exception exx)
+			{
+				std::stringstream ss;
+				ss << exx.what();
+				MessageBoxA(0, ss.str().c_str(), "eREFRESH", 0);
+
+			}
+		}
+	}
+	POINT *mousept = new POINT();
+	inline bool mouse(MOUSEEVENTS whatwant)//Right = loc X, Bottom = Loc Y, Left = Size X, Top = Size Y
 	{
-		if ((mouse.x + 12 > sizes->Window.right + vaf->labelX && mouse.x < sizes->Window.right + vaf->labelX + 25) &&//25 = DEGERIN SIZESI
-			mouse.y > sizes->Window.bottom + vaf->labelY && mouse.y < sizes->Window.bottom + vaf->labelY + 15)
-			return true;
-		else
-			return false;
+		GetCursorPos(mousept);
+		if (whatwant == MOUSEEVENTS::ON_FORM)
+		{
+			if ((mousept->x > Window.right && mousept->x < Window.right + Window.left - 1) &&
+				(mousept->y > Window.bottom && mousept->y < Window.bottom + Window.top - 1))
+				return true;
+			else
+				return false;
+		}
+		else if (whatwant == MOUSEEVENTS::ON_PROGRESSBAR)//progressbarin ustune tiklandiginda da calissin diye ozel degerler eklendi
+		{
+			if ((mousept->x + 5 > Window.right + Progressbar.left && mousept->x < Window.right + Window.left - Progressbar.left + 1) &&
+				(mousept->y + 10 > Window.bottom + Progressbar.top && mousept->y < Window.bottom + Window.top - Progressbar.top - 7))
+				return true;
+			else
+				return false;
+		}
+		else if (whatwant == MOUSEEVENTS::ON_LABEL)
+		{
+			if ((mousept->x + 12 > Window.right + labelX && mousept->x < Window.right + labelX + 25) &&//25 = DEGERIN SIZESI
+				mousept->y > Window.bottom + labelY && mousept->y < Window.bottom + labelY + 15)
+				return true;
+			else
+				return false;
+		}
 	}
-}
+};
