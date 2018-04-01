@@ -2,8 +2,8 @@
 ### Türkçe
 * Mousenin tekerlegi ile ses duzeyini degistirebilirsiniz.
 * Windows 10'da ki Volume Step Adjuster'a benzetilmistir.
-* Ses degistirildiginde otomatik gozukur.
-* Ses yazan labela tiklarsaniz Mousenin SOL ve SAG clickine ayni anda basip formu gorebilirsiniz.
+* Volume  degistirildiginde otomatik gozukur.
+* Volume yazan labela tiklarsaniz; Mousenin SOL ve SAG clickine ayni anda basip formu goruntuleyebilirsiniz.
 
 
 ![onweb](https://user-images.githubusercontent.com/29755479/35992363-c4778904-0d12-11e8-818b-439444527a30.png)  
