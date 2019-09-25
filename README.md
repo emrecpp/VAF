@@ -1,4 +1,4 @@
-# VAF - Volume Adjuster
+# Volume Shower for Windows 7
 ### Türkçe
 * Mousenin tekerlegi ile ses duzeyini degistirebilirsiniz.
 * Windows 10'da ki Volume Step Adjuster'a benzetilmistir.
